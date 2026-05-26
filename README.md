@@ -70,13 +70,13 @@ python3 train_detach.py --config fvp_mlp.yaml --env_name humanoid
 python3 train_detach.py --config diag_mlp.yaml --env_name humanoid
 
 # sophia (diagonal Fisher) for shared actor-critic
-python3 train_detach.py --config diag_mlp_shared.yaml --env_name humanoid
+python3 train_shared.py --config diag_mlp_shared.yaml --env_name humanoid
 
 # ACTKR (kfac-based) for separate actor-critic
 python3 train_detach.py --config kfac_mlp.yaml --env_name humanoid
 
 # ACTKR (kfac-based) for shared actor-critic
-python3 train_detach.py --config kfac_mlp_shared.yaml --env_name humanoid
+python3 train_shared.py --config kfac_mlp_shared.yaml --env_name humanoid
 ```
 
 ### Common overrides
