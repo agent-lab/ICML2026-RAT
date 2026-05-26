@@ -1,0 +1,33 @@
+algo_config:
+  adv_type: gae
+  cg_damping: 0.1
+  clamp_ratio: true
+  ent_coef: 0.0
+  epochs: 4
+  is_karzmarz: true
+  lr: 0.05
+  max_grad_norm: 0.5
+  max_ratio: 10.0
+  min_ratio: 0.1
+  minibatches: 8
+  norm_obj: adv
+  optimizer: sgd
+  sigma_type: vector
+  use_kl_adaptive_lr: true
+  vf_coef: 1.0
+  with_popart: true
+env_config:
+  env_name: humanoid
+  norm_ret: false
+  nsteps: 256
+  num_envs: 32
+  timesteps_per_proc: 10000000
+log_config:
+  log_interval: 10
+  n_eval_trials: 20
+nets_config:
+  dropout: 0.0
+  hidden_size: 256
+  norm_obs: true
+  num_layers: 2
+  type: mlp
