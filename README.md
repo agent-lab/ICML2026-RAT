@@ -8,6 +8,8 @@
 
 ## Overview
 
+<img src="rat.jpg" align="left" width="220" style="margin-left: 20px; margin-bottom: 10px;">
+
 Natural policy gradients improve optimization by accounting for the geometry of distribution space, but their practical use is limited by the cost of estimating and inverting the Fisher matrix. **RAT** estimates Tikhonov-regularized natural policy gradients via direct backpropagation. By applying the Woodbury formula, we reformulate the regularized natural policy gradient as a vanilla policy gradient with a *transformed advantage*. RAT computes this transformation efficiently via randomized block Kaczmarz iterations on on-policy mini-batches, avoiding explicit Fisher construction, conjugate-gradient solvers, and architecture-specific approximations.
 
 **Key properties:**
