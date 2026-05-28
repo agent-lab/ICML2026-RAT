@@ -19,6 +19,12 @@ algo_config:
   min_ratio: 0.1
   sigma_type: 'vector' # mu_shared, separate, linear
   cg_damping: 0.1
+  fisher_kernel: exact # exact, countsketch_random
+  sketch_dim: 32768
+  sketch_seed: 0
+  sketch_diagonal_mode: z_only # z_only, row_rescale
+  fisher_kernel_normalization: correlation # none, correlation
+  fisher_kernel_normalization_eps: 1.0e-12
   grad: 'npg' # 'npg'
   post_grad: 'fisher_clip' # 'l2_clip', 'norm', 'fisher_clip'
   max_grad_norm: 0.5

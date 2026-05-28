@@ -18,6 +18,7 @@ from torch.func import vmap, grad, functional_call
 import torch.multiprocessing as mp
 
 from utils.runners import Runner
+from utils.sketching import solve_score_kernel_system
 from torch.optim import Adam, SGD
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.tensorboard import SummaryWriter
@@ -155,18 +156,28 @@ def learn(world_size, algo, actor_critic, writer, venv, device,
         with torch.no_grad():
             num_sa = _obs.shape[0]
             H = torch.cat([v.view(num_sa, -1) for v in ft_per_sample_grads.values()], dim=-1)  # num_samples x num_params
-            # HHT is the sample-space Gram matrix used to solve for corrected advantages.
-            HHT = H @ H.t() / num_sa # num_samples x num_samples
             _pseudo_adv = torch.ones_like(_adv)
 
+            previous_projection = None
             if algo_config.is_karzmarz:
                 gk_list = [ v['momentum_buffer'].flatten() for v in ac_optimizer.state.values() if v['momentum_buffer'] is not None ]
                 if len(gk_list) > 0:
                     g_k = torch.cat(gk_list, dim=0)
-                    _adv = _adv - torch.mv(H, g_k)
-                    _pseudo_adv = _pseudo_adv - torch.mv(H, g_k)
+                    previous_projection = torch.mv(H, g_k)
 
-            _tmp_adv = torch.linalg.solve( HHT @ torch.diag(_ratio) + algo_config.cg_damping * torch.eye(num_sa, device=device), torch.stack([_adv, _pseudo_adv], dim=1))
+            _tmp_adv = solve_score_kernel_system(
+                H,
+                torch.stack([_adv, _pseudo_adv], dim=1),
+                algo_config.cg_damping,
+                ratio=_ratio,
+                kernel=algo_config.fisher_kernel,
+                sketch_dim=algo_config.sketch_dim,
+                sketch_seed=algo_config.sketch_seed,
+                diagonal_mode=algo_config.sketch_diagonal_mode,
+                normalization=algo_config.fisher_kernel_normalization,
+                normalization_eps=algo_config.fisher_kernel_normalization_eps,
+                previous_projection=previous_projection,
+            )
             _png_adv, _critic_adv = _tmp_adv[:, 0], _tmp_adv[:, 1]
 
         # udpate actor
@@ -685,6 +696,15 @@ def main():
     parser.add_argument('--epochs', type=int, default=None) # distributed training: number of processes
     parser.add_argument('--lr', type=float, default=None) # distributed training: number of processes
     parser.add_argument('--timesteps_per_proc', type=int, default=None) # distributed training: number of processes
+    parser.add_argument('--fisher_kernel', type=str, default=None,
+                        choices=['exact', 'countsketch', 'countsketch_random', 'random_countsketch'])
+    parser.add_argument('--sketch_dim', type=int, default=None)
+    parser.add_argument('--sketch_seed', type=int, default=None)
+    parser.add_argument('--sketch_diagonal_mode', type=str, default=None,
+                        choices=['z_only', 'row_rescale'])
+    parser.add_argument('--fisher_kernel_normalization', type=str, default=None,
+                        choices=['none', 'correlation', 'diag', 'diagonal', 'row_norm', 'sample_norm'])
+    parser.add_argument('--fisher_kernel_normalization_eps', type=float, default=None)
     parser.add_argument('--seed', type=int, default=None) 
 
     args = parser.parse_args()
@@ -731,6 +751,32 @@ def main():
 
     if args.timesteps_per_proc is not None:
         env_config.timesteps_per_proc = args.timesteps_per_proc
+
+    if not hasattr(algo_config, 'fisher_kernel'):
+        algo_config.fisher_kernel = 'exact'
+    if not hasattr(algo_config, 'sketch_dim'):
+        algo_config.sketch_dim = 32768
+    if not hasattr(algo_config, 'sketch_seed'):
+        algo_config.sketch_seed = 0
+    if not hasattr(algo_config, 'sketch_diagonal_mode'):
+        algo_config.sketch_diagonal_mode = 'z_only'
+    if not hasattr(algo_config, 'fisher_kernel_normalization'):
+        algo_config.fisher_kernel_normalization = 'correlation'
+    if not hasattr(algo_config, 'fisher_kernel_normalization_eps'):
+        algo_config.fisher_kernel_normalization_eps = 1e-12
+
+    if args.fisher_kernel is not None:
+        algo_config.fisher_kernel = args.fisher_kernel
+    if args.sketch_dim is not None:
+        algo_config.sketch_dim = args.sketch_dim
+    if args.sketch_seed is not None:
+        algo_config.sketch_seed = args.sketch_seed
+    if args.sketch_diagonal_mode is not None:
+        algo_config.sketch_diagonal_mode = args.sketch_diagonal_mode
+    if args.fisher_kernel_normalization is not None:
+        algo_config.fisher_kernel_normalization = args.fisher_kernel_normalization
+    if args.fisher_kernel_normalization_eps is not None:
+        algo_config.fisher_kernel_normalization_eps = args.fisher_kernel_normalization_eps
 
     if args.n_proc > 1:
         # multiple nodes
