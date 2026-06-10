@@ -210,7 +210,8 @@ If you find this code useful, please cite our paper:
   year      = {2026},
 }
 ```
-
+> This work was supported in part by the Engineering and Physical Sciences Research 
+Council (EPSRC) through the AI Hub in Generative Models [grant number EP/Y028805/1]."
 ---
 
 ## License
